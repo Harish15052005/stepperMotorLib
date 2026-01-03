@@ -5,7 +5,7 @@ StepperMotor::StepperMotor(uint8_t stepPin, uint8_t dirPin, uint8_t stepsPerRevo
     _stepPin = stepPin;
     _dirPin = dirPin;
 
-    _stepsPerDegree = (stepsPerRevolution * gearRatio) / 360.0f;
+    _stepsPerDegree = (stepsPerRevolution * gearRatio * microstep) / 360.0f;
 }
 
 void StepperMotor::begin()
