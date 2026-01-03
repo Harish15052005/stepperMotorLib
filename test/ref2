@@ -1,0 +1,41 @@
+#pragma once
+#include <Arduino.h>
+
+class StepperMotor {
+public:
+    StepperMotor(uint8_t stepPin,
+                 uint8_t dirPin,
+                 uint8_t enPin,
+                 float stepsPerRev,
+                 float gearRatio = 1.0f);
+
+    void begin();
+
+    // Preemptable motion command
+    void moveToAngle(float angle_deg, float time_s);
+
+    void plannerUpdate();  // called at 1 kHz
+    void stepUpdate();     // called at STEP_ISR_FREQ
+
+    bool isMoving();
+    float getCurrentAngle();
+
+private:
+    void planMove(float targetAngle, float time_s);
+
+    uint8_t _stepPin, _dirPin, _enPin;
+
+    float _stepsPerDegree;
+
+    volatile int32_t _currentSteps = 0;
+    volatile int32_t _targetSteps  = 0;
+    volatile int32_t _stepsRemaining = 0;
+
+    volatile float _currentSpeed = 0;   // steps/sec
+    volatile float _targetSpeed  = 0;
+    volatile float _accel        = 0;
+
+    volatile float _stepAccumulator = 0;
+
+    volatile bool _moving = false;
+};
