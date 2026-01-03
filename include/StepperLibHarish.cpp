@@ -1,43 +1,100 @@
 #include "StepperLibHarish.h"
 
-StepperMotor::StepperMotor(uint8_t stepPin, uint8_t dirPin, uint8_t stepsPerRevolution, uint16_t gearRatio, uint8_t microstep)
+// ===== SAFETY & BEHAVIOR LIMITS =====
+#define MAX_STEP_SPEED 8000.0f // steps/s
+#define MAX_ACCEL 20000.0f     // steps/s²
+#define MAX_JERK 24000.0f      // steps/s³
+#define DEFAULT_MOVE_TIME_S 1.0f
+#define SMALL_ANGLE_DEG 2.0f
+
+/*
+    Constructor for the StepperMotor class.
+    @param stepPin: GPIO pin connected to the STEP input of the driver.
+    @param dirPin: GPIO pin connected to the DIR input of the driver.
+    @param enPin: GPIO pin connected to the ENABLE input of the driver. Pass 255 if not used.
+    @param stepsPerRev: Number of steps per revolution of the motor.
+    @param gearRatio: Gear ratio of the motor (optional, default 1).
+    @param microsteps: Number of microsteps per step (optional, default 16).
+*/
+
+StepperMotor::StepperMotor(uint8_t stepPin,
+                           uint8_t dirPin,
+                           uint8_t enPin = 255,
+                           float stepsPerRev,
+                           float gearRatio,
+                           uint8_t microsteps = 16)
 {
     _stepPin = stepPin;
     _dirPin = dirPin;
+    _enPin = enPin;
 
-    _stepsPerDegree = (stepsPerRevolution * gearRatio * microstep) / 360.0f;
+    _stepsPerDegree = (stepsPerRev * gearRatio * microsteps) / 360.0f;
 }
 
 void StepperMotor::begin()
 {
     pinMode(_stepPin, OUTPUT);
     pinMode(_dirPin, OUTPUT);
+    if (_enPin != 255)
+    {
+        pinMode(_enPin, OUTPUT);
+        digitalWrite(_enPin, LOW);
+    }
 }
 
-void StepperMotor::moveToAngle(float angle, float duration)
+float StepperMotor::getCurrentAngle()
 {
-    // Calculate target steps
-    _targetSteps = (int32_t)(angle * _stepsPerDegree);
-    int32_t delta = _targetSteps - _currentSteps;
+    return _currentSteps / _stepsPerDegree;
+}
 
-    _stepsRemaining = abs(delta);
+bool StepperMotor::isMoving()
+{
+    return _moving;
+}
 
-    if (_stepsRemaining == 0)
+void StepperMotor::moveToAngle(float angle_deg, float time_s)
+{
+    int32_t newTargetSteps = (int32_t)(angle_deg * _stepsPerDegree);
+
+    // Ignore redundant command
+    if (newTargetSteps == _targetSteps)
+        return;
+
+    int32_t delta = newTargetSteps - _currentSteps;
+
+    // Small move → snap to target, instead of acceleration to save time
+    if (abs(delta) < (SMALL_ANGLE_DEG * _stepsPerDegree))
     {
+        _currentSteps = newTargetSteps;
+        _targetSteps = newTargetSteps;
         _moving = false;
+        _currentSpeed = 0;
+        _currentAccel = 0;
         return;
     }
 
+    // Invalid / unsafe time
+    if (time_s <= 0)
+        time_s = DEFAULT_MOVE_TIME_S;
+
+    float requiredSpeed = abs(delta) / time_s;
+    if (requiredSpeed > MAX_STEP_SPEED)
+        time_s = abs(delta) / MAX_STEP_SPEED;
+
+    // Setup new motion (PREEMPT SAFE)
+    _targetSteps = newTargetSteps;
+    _stepsRemaining = abs(delta);
+    _targetSpeed = abs(delta) / time_s;
+
+    _targetAccel = min(MAX_ACCEL, _targetSpeed / (time_s * 0.3f));
+    _jerk = MAX_JERK;
+
     digitalWrite(_dirPin, delta >= 0 ? HIGH : LOW);
 
-    // Calculate required speed and acceleration to reach target in given duration
-    _targetSpeed = _stepsRemaining / duration;
-    _accel = (2.0f * _targetSpeed) / duration;
+    // Keep speed continuous (no jump)
+    if (_currentSpeed < 1.0f)
+        _currentSpeed = 1.0f;
 
-    if (_currentSpeed < 1)
-        _currentSpeed = 1;
-
-    _stepAccumulator = 0;
     _moving = true;
 }
 
@@ -46,22 +103,41 @@ void StepperMotor::plannerUpdate()
     if (!_moving)
         return;
 
-    float dt = 0.001f; // 1 ms
+    const float dt = 0.001f; // 1 ms
 
-    // Deceleration distance check
-    float decelDist = (_currentSpeed * _currentSpeed) / (2 * _accel);
+    // Distance needed to stop
+    float decelDist = (_currentSpeed * _currentSpeed) / (2.0f * _targetAccel);
 
+    // Decide accel direction
     if (_stepsRemaining <= decelDist)
     {
-        _currentSpeed -= _accel * dt;
+        _targetAccel = -MAX_ACCEL;
     }
-    else if (_currentSpeed < _targetSpeed)
+    else
     {
-        _currentSpeed += _accel * dt;
+        _targetAccel = MAX_ACCEL;
     }
 
-    if (_currentSpeed < 1)
-        _currentSpeed = 1;
+    if (_currentAccel < _targetAccel)
+    {
+        _currentAccel += _jerk * dt;
+        if (_currentAccel > _targetAccel)
+            _currentAccel = _targetAccel;
+    }
+    else if (_currentAccel > _targetAccel)
+    {
+        _currentAccel -= _jerk * dt;
+        if (_currentAccel < _targetAccel)
+            _currentAccel = _targetAccel;
+    }
+
+    // Integrate speed
+    _currentSpeed += _currentAccel * dt;
+
+    if (_currentSpeed < 1.0f)
+        _currentSpeed = 1.0f;
+    if (_currentSpeed > _targetSpeed)
+        _currentSpeed = _targetSpeed;
 }
 
 void StepperMotor::stepUpdate()
@@ -75,6 +151,7 @@ void StepperMotor::stepUpdate()
     {
         _stepAccumulator -= STEP_ISR_FREQ;
 
+        // STEP pulse
         digitalWrite(_stepPin, HIGH);
         digitalWrite(_stepPin, LOW);
 
@@ -84,6 +161,9 @@ void StepperMotor::stepUpdate()
         if (_stepsRemaining <= 0)
         {
             _moving = false;
+            _currentSpeed = 0;
+            _currentAccel = 0;
+            _currentSteps = _targetSteps;
         }
     }
 }
