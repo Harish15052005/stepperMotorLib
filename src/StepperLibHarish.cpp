@@ -18,11 +18,11 @@
 */
 
 StepperMotor::StepperMotor(uint8_t stepPin,
-                           uint8_t dirPin,
-                           uint8_t enPin = 255,
-                           float stepsPerRev,
-                           float gearRatio,
-                           uint8_t microsteps = 16)
+                             uint8_t dirPin,
+                             uint8_t enPin,
+                             float stepsPerRev,
+                             float gearRatio,
+                             uint8_t microsteps)
 {
     _stepPin = stepPin;
     _dirPin = dirPin;

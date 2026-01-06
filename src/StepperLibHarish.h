@@ -9,8 +9,8 @@ class StepperMotor {
 public:
     StepperMotor(uint8_t stepPin,
                  uint8_t dirPin,
-                 uint8_t enPin,
-                 float stepsPerRev,
+                 uint8_t enPin = 255,
+                 float stepsPerRev = 200.0f,
                  float gearRatio = 1.0f,
                  uint8_t microsteps = 16);
 
