@@ -18,6 +18,7 @@ public:
 
     // Preemptable, safe motion command
     void moveToAngle(float angle_deg, float time_s);
+    void moveToAngleLinear(float angle_deg, float time_s);
 
     // Called from global ISRs
     void plannerUpdate();   // 1 kHz
