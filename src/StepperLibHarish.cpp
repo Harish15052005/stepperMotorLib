@@ -1,7 +1,7 @@
 #include "StepperLibHarish.h"
 
 // ===== SAFETY & BEHAVIOR LIMITS =====
-#define MAX_STEP_SPEED 8000.0f // steps/s
+#define MAX_STEP_SPEED 10000.0f // steps/s
 #define MAX_ACCEL 20000.0f     // steps/s²
 #define MAX_JERK 24000.0f      // steps/s³
 #define DEFAULT_MOVE_TIME_S 1.0f
@@ -97,6 +97,56 @@ void StepperMotor::moveToAngle(float angle_deg, float time_s)
 
     _moving = true;
 }
+
+void StepperMotor::moveToAngleLinear(float angle_deg, float time_s)
+{
+    int32_t newTargetSteps = (int32_t)(angle_deg * _stepsPerDegree);
+
+    // Ignore redundant command
+    if (newTargetSteps == _targetSteps)
+        return;
+
+    int32_t delta = newTargetSteps - _currentSteps;
+
+    // Small move → snap
+    if (abs(delta) < (SMALL_ANGLE_DEG * _stepsPerDegree))
+    {
+        _currentSteps = newTargetSteps;
+        _targetSteps  = newTargetSteps;
+        _moving = false;
+        _currentSpeed = 0;
+        _currentAccel = 0;
+        return;
+    }
+
+    // Invalid / unsafe time
+    if (time_s <= 0)
+        time_s = DEFAULT_MOVE_TIME_S;
+
+    float requiredSpeed = abs(delta) / time_s;
+
+    // Clamp to max safe speed
+    if (requiredSpeed > MAX_STEP_SPEED)
+    {
+        requiredSpeed = MAX_STEP_SPEED;
+        time_s = abs(delta) / requiredSpeed;
+    }
+
+    _targetSteps    = newTargetSteps;
+    _stepsRemaining = abs(delta);
+    _targetSpeed    = requiredSpeed;
+
+    _currentSpeed   = _targetSpeed;  // start immediately at full speed
+    _currentAccel   = 0;             // disable accel
+    _jerk           = 0;
+
+    digitalWrite(_dirPin, delta >= 0 ? HIGH : LOW);
+
+    _stepAccumulator = 0;
+    _moving = true;
+}
+
+    
 
 void StepperMotor::plannerUpdate()
 {

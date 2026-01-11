@@ -53,8 +53,10 @@ void loop()
         inp1 = Serial.parseInt();
         inp2 = Serial.parseInt(); 
 
-        shoulder.moveToAngle(inp1, 0.5);
-        elbow.moveToAngle(inp2, 0.5);
+        // shoulder.moveToAngle(inp1, 0.5);
+        // elbow.moveToAngle(inp2, 0.5);
+        shoulder.moveToAngleLinear(inp1, 1);
+        elbow.moveToAngleLinear(inp2, 1);
     }
 
     Serial.print(inp1);Serial.print(" ");
