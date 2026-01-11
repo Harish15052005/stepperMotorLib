@@ -1,6 +1,5 @@
 #include "Arduino.h"
 #include "StepperLibHarish.h"
-#include "gamepad.h"
 
 #define shoulderStepPin PA0
 #define shoulderDirPin PA1
@@ -28,7 +27,6 @@ void plannerISR()
 void setup()
 {
     Serial.begin(115200);
-    gamepadSerial.begin(115200);
     shoulder.begin();
     elbow.begin();
 
@@ -45,22 +43,23 @@ void setup()
     plannerTimer->resume();
 }
 
-int inp1=0, inp2=0;
+int inp1 = 0, inp2 = 0;
 
 void loop()
 {
-    if(Serial.available() >= 2){
+    if (Serial.available() >= 2)
+    {
         inp1 = Serial.parseInt();
-        inp2 = Serial.parseInt(); 
+        inp2 = Serial.parseInt();
 
-        // shoulder.moveToAngle(inp1, 0.5);
-        // elbow.moveToAngle(inp2, 0.5);
-        shoulder.moveToAngleLinear(inp1, 1);
-        elbow.moveToAngleLinear(inp2, 1);
+        shoulder.moveToAngle(inp1, inp2);
     }
 
-    Serial.print(inp1);Serial.print(" ");
-    Serial.print(inp2);Serial.print(" ");
-    Serial.print(shoulder.getCurrentAngle());Serial.print(" ");
+    Serial.print(inp1);
+    Serial.print(" ");
+    Serial.print(inp2);
+    Serial.print(" ");
+    Serial.print(shoulder.getCurrentAngle());
+    Serial.print(" ");
     Serial.println(elbow.getCurrentAngle());
 }
