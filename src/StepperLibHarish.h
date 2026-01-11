@@ -39,15 +39,14 @@ private:
     volatile int32_t _targetSteps  = 0;
     volatile int32_t _stepsRemaining = 0;
 
-    // Motion state
-    volatile float _currentSpeed = 0.0f;   // steps/s
-    volatile float _targetSpeed  = 0.0f;
-
-    volatile float _currentAccel = 0.0f;   // steps/s²
-    volatile float _targetAccel  = 0.0f;
-
-    volatile float _jerk         = 0.0f;   // steps/s³
-
+    // Runtime state
+    volatile float _currentSpeed = 0.0f;
+    volatile float _currentAccel = 0.0f;
     volatile float _stepAccumulator = 0.0f;
     volatile bool  _moving = false;
+
+    // Planned trajectory (precomputed)
+    float _t = 0.0f;
+    float _Tj, _Ta, _Tc;
+    float _A, _J, _Vmax;
 };
