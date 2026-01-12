@@ -4,20 +4,9 @@
 #define MAX_MOTORS 6
 #define STEP_ISR_FREQ 50000.0f // 50 kHz
 #define PLANNER_DT 0.001f      // 1 ms
-enum MotionPhase {
-    PHASE_ACCEL_JERK_UP,
-    PHASE_ACCEL_CONST,
-    PHASE_ACCEL_JERK_DOWN,
-    PHASE_CRUISE,
-    PHASE_DECEL_JERK_UP,
-    PHASE_DECEL_CONST,
-    PHASE_DECEL_JERK_DOWN
-};
 
-MotionPhase _phase;
-float _currentJerk;
-
-class StepperMotor {
+class StepperMotor
+{
 public:
     StepperMotor(uint8_t stepPin,
                  uint8_t dirPin,
@@ -33,10 +22,10 @@ public:
     void moveToAngleLinear(float angle_deg, float time_s);
 
     // Called from global ISRs
-    void plannerUpdate();   // 1 kHz
-    void stepUpdate();      // STEP_ISR_FREQ
+    void plannerUpdate(); // 1 kHz
+    void stepUpdate();    // STEP_ISR_FREQ
 
-    bool  isMoving();
+    bool isMoving();
     float getCurrentAngle();
 
 private:
@@ -48,17 +37,30 @@ private:
 
     // Position state
     volatile int32_t _currentSteps = 0;
-    volatile int32_t _targetSteps  = 0;
+    volatile int32_t _targetSteps = 0;
     volatile int32_t _stepsRemaining = 0;
 
     // Runtime state
     volatile float _currentSpeed = 0.0f;
     volatile float _currentAccel = 0.0f;
     volatile float _stepAccumulator = 0.0f;
-    volatile bool  _moving = false;
+    volatile bool _moving = false;
 
     // Planned trajectory (precomputed)
     float _t = 0.0f;
     float _Tj, _Ta, _Tc;
     float _A, _J, _Vmax;
+    enum MotionPhase
+    {
+        PHASE_ACCEL_JERK_UP,
+        PHASE_ACCEL_CONST,
+        PHASE_ACCEL_JERK_DOWN,
+        PHASE_CRUISE,
+        PHASE_DECEL_JERK_UP,
+        PHASE_DECEL_CONST,
+        PHASE_DECEL_JERK_DOWN
+    };
+
+    MotionPhase _phase;
+    float _currentJerk;
 };
