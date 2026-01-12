@@ -4,6 +4,18 @@
 #define MAX_MOTORS 6
 #define STEP_ISR_FREQ 50000.0f // 50 kHz
 #define PLANNER_DT 0.001f      // 1 ms
+enum MotionPhase {
+    PHASE_ACCEL_JERK_UP,
+    PHASE_ACCEL_CONST,
+    PHASE_ACCEL_JERK_DOWN,
+    PHASE_CRUISE,
+    PHASE_DECEL_JERK_UP,
+    PHASE_DECEL_CONST,
+    PHASE_DECEL_JERK_DOWN
+};
+
+MotionPhase _phase;
+float _currentJerk;
 
 class StepperMotor {
 public:
